@@ -3,27 +3,29 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 function App() {
-  // const [hello, setHello] = useState("");
   const [systemInfo, setSystemInfo] = useState(null)
-  // const [cpu, setCpu] = useState(0);
-  // const [memory, setMemory] = useState(0)
-
-  // async function helloAtlas() {
-  //   setHello(await invoke("hello_atlas"));
-  // }
 
   async function getSystemInfo() {
+    try{
     setSystemInfo(await invoke("get_system_info"))
+    }
+    catch(error){
+      console.error("Failed to connect to the backend", error)
+    }
   }
+  console.log("This is to check what i am receving", systemInfo)
 
   return (
     <main className="container">
-      {/* <button onClick={helloAtlas}>Click me</button>
-      <p>{hello}</p> */}
       <button onClick={getSystemInfo}>Get Diagnostics</button>
+      {systemInfo === null ? 
+      <p>There is no data</p> : 
+      <>
       <p>CPU: {systemInfo.cpu_percent}%</p>
       <p>RAM: {systemInfo.used_memory} / {systemInfo.total_memory}</p>
       <p>DISK: {systemInfo.used_disk} / {systemInfo.total_disk}</p>
+      </>
+    }
     </main>
   );
 }
