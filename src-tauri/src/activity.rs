@@ -77,10 +77,10 @@ pub fn recent_activity(conn: &Connection, limit: i64) -> SqlResult<Vec<ActivityE
         Ok(ActivityEvent {
             started_at: row.get(0)?,
             ended_at: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-            application: row.get(2)?,
-            window_title: row.get(3)?,
-            path: row.get(4)?,
-            event_type: row.get(5)?,
+            application: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            window_title: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+            path: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+            event_type: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
             process_id: None,
         })
     })?;
@@ -126,9 +126,14 @@ pub fn start_tracker(app: AppHandle, db: Arc<Mutex<Connection>>) {
             let mut to_emit = event.clone();
             to_emit.started_at = now.clone();
 
-            if let Ok(conn) = db.lock() {
-                let _ = close_open_events(&conn, &now);
-                let _ = insert_activity_event(&conn, &to_emit);
+            let saved = db.lock().ok().and_then(|conn| {
+                let tx = conn.unchecked_transaction().ok()?;
+                close_open_events(&tx, &now).ok()?;
+                insert_activity_event(&tx, &to_emit).ok()?;
+                tx.commit().ok()
+            });
+            if saved.is_none() {
+                continue;
             }
 
             let _ = app.emit("activity-changed", &to_emit);
